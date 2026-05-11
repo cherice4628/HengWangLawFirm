@@ -389,7 +389,91 @@ footer {
     <span>Scroll</span>
   </div>
 </section>
+</section> 
+<section id="calculator" style="background: var(--paper); padding: 6rem 5vw;"><section id="calculator" style="background: var(--paper); padding: 6rem 5vw;">
+  <div class="reveal" style="max-width: 900px; margin: 0 auto; background: var(--white); border: 1px solid var(--divider); padding: 3rem 2rem; position: relative; overflow: hidden;">
+    <div style="position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--gold);"></div>
+    
+    <div style="text-align: center; margin-bottom: 3rem;">
+      <p class="section-label">Online Tools</p>
+      <h2 class="section-title-cn">房产交易估算器</h2>
+      <div class="section-title-en">SPA Legal Fee & Stamp Duty Calculator</div>
+      <div class="gold-bar" style="margin: 1.5rem auto;"></div>
+    </div>
 
+    <div style="display: grid; grid-template-columns: 1fr; gap: 2rem; max-width: 600px; margin: 0 auto;">
+      <div class="form-group">
+        <label style="color: var(--ink); font-weight: 600;">房产购买价格 (Property Purchase Price)</label>
+        <div style="position: relative; margin-top: 0.5rem;">
+          <span style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--gold); font-weight: 600;">RM</span>
+          <input type="number" id="propPrice" placeholder="例如: 500000" style="width: 100%; padding: 1rem 1rem 1rem 3rem; background: var(--paper); border: 1px solid var(--divider); font-size: 1.1rem; color: var(--ink); outline: none;">
+        </div>
+      </div>
+
+      <button class="form-submit" onclick="runCalculation()" style="width: 100%; padding: 1.2rem; font-size: 0.9rem; font-weight: 600; cursor: pointer;">点击计算估价 ESTIMATE NOW</button>
+
+      <div id="resultBox" style="display: none; background: var(--paper-dark); padding: 2rem; border-radius: 4px; margin-top: 1rem; border: 1px dashed var(--gold);">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 1.2rem; border-bottom: 1px solid rgba(184,150,12,0.1); padding-bottom: 0.8rem;">
+          <span style="font-size: 0.9rem; color: var(--grey);">律师费 (Legal Fees):</span>
+          <span id="displayLegal" style="color: var(--gold); font-weight: 600; font-family: 'Cormorant Garamond', serif; font-size: 1.4rem;">RM 0.00</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 1.2rem; border-bottom: 1px solid rgba(184,150,12,0.1); padding-bottom: 0.8rem;">
+          <span style="font-size: 0.9rem; color: var(--grey);">转名印花税 (Stamp Duty MOT):</span>
+          <span id="displayStamp" style="color: var(--gold); font-weight: 600; font-family: 'Cormorant Garamond', serif; font-size: 1.4rem;">RM 0.00</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-weight: 600; padding-top: 0.5rem;">
+          <span style="font-size: 1rem; color: var(--ink);">预估总额 (Estimated Total):</span>
+          <span id="displayTotal" style="color: var(--gold-light); font-size: 1.6rem; font-family: 'Cormorant Garamond', serif;">RM 0.00</span>
+        </div>
+        
+        <p style="font-size: 0.7rem; color: var(--grey-light); line-height: 1.6; margin-top: 1.5rem;">
+          * 注：以上结果基于 SRO 2023 费率计算，仅包含基本律师费与印花税。未包含 8% SST、杂费 (Disbursements) 及贷款合约费用。请点击下方按钮获取正式报价单 (Quotation)。
+        </p>
+        
+        <a href="https://wa.me/60108758531" target="_blank" style="display: block; text-align: center; background: #25D366; color: white; text-decoration: none; padding: 0.8rem; margin-top: 1.5rem; border-radius: 4px; font-size: 0.8rem; letter-spacing: 1px;">通过 WhatsApp 获取正式报价</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+function runCalculation() {
+    const p = parseFloat(document.getElementById('propPrice').value);
+    if (!p || p <= 0) {
+        alert("请输入正确的房价数值");
+        return;
+    }
+
+    // 律师费计算 (SRO 2023)
+    // 首 500k: 1.25%
+    // 接下来 7M: 1.1%
+    let legal = 0;
+    if (p <= 500000) {
+        legal = p * 0.0125;
+    } else {
+        legal = (500000 * 0.0125) + ((p - 500000) * 0.011);
+    }
+    if (legal < 500) legal = 500;
+
+    // 印花税计算 (MOT)
+    // 1st 100k: 1%, Next 400k: 2%, Next 500k: 3%, Remainder: 4%
+    let stamp = 0;
+    if (p <= 100000) {
+        stamp = p * 0.01;
+    } else if (p <= 500000) {
+        stamp = 1000 + (p - 100000) * 0.02;
+    } else if (p <= 1000000) {
+        stamp = 1000 + 8000 + (p - 500000) * 0.03;
+    } else {
+        stamp = 1000 + 8000 + 15000 + (p - 1000000) * 0.04;
+    }
+
+    document.getElementById('displayLegal').innerText = 'RM ' + legal.toLocaleString(undefined, {minimumFractionDigits: 2});
+    document.getElementById('displayStamp').innerText = 'RM ' + stamp.toLocaleString(undefined, {minimumFractionDigits: 2});
+    document.getElementById('displayTotal').innerText = 'RM ' + (legal + stamp).toLocaleString(undefined, {minimumFractionDigits: 2});
+    document.getElementById('resultBox').style.display = 'block';
+}
+</script>
 <!-- ABOUT -->
 <section id="about">
   <div style="max-width:1100px;margin:0 auto;">
