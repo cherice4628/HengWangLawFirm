@@ -1,233 +1,773 @@
-Build a premium, AI-native email client landing page called "Aura" using **React 18 + TypeScript + Vite + Tailwind CSS + motion/react (framer motion) + lucide-react**. The aesthetic is dark (bg `#0c0c0c`), cinematic, glassy, with a looping fullscreen background video, a shiny gradient headline, a macOS-style menu bar, a realistic inbox mockup, and a custom "liquid-glass" card treatment.
-
-## Stack / setup
-
-- `package.json` dependencies: `react`, `react-dom`, `@supabase/supabase-js`, `motion` (v12+, import from `motion/react`), `lucide-react`.
-- Tailwind config extends colors with `brand: '#3D81E3'` and fontFamily sans with `['Inter','system-ui','sans-serif']`.
-- Font: Google Fonts Inter weights 400, 500, 600, 700, 800, 900. Import in `index.css` via `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');`.
-- `html,body { font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }`.
-- Background color base `#0c0c0c`, text white, selection `bg-brand/30`.
-
-## Global background video (fixed, behind everything)
-
-Inside the root wrapper (`relative min-h-screen overflow-x-hidden bg-[#0c0c0c] text-white`), render a fixed full-screen video:
-
-```
-<div className="fixed inset-0 z-0 pointer-events-none">
-  <video autoPlay loop muted playsInline
-    className="w-full h-full object-cover pointer-events-none"
-    src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260508_064122_c4750c0e-7476-4b44-94a2-a85a65c63bf2.mp4" />
-</div>
-```
-
-Also render two hidden-on-mobile fixed vertical guide lines at the 36rem container edges:
-```
-<div className="hidden md:block pointer-events-none fixed inset-y-0 left-1/2 -translate-x-[calc(50%+36rem)] w-px bg-white/10 z-[5]" />
-<div className="hidden md:block pointer-events-none fixed inset-y-0 left-1/2 translate-x-[calc(-50%+36rem)] w-px bg-white/10 z-[5]" />
-```
-
-## Global SVG noise filters (two, both id `c3-noise`)
-
-- One at root level (subtle grain, multiply blend) for the shiny headline.
-- One inside the pricing section (fractal noise, overlay blend) for the watermark.
-
-Root filter:
-```
-<filter id="c3-noise">
-  <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" />
-  <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.35 0" />
-  <feComposite in2="SourceGraphic" operator="in" result="noise" />
-  <feBlend in="SourceGraphic" in2="noise" mode="multiply" />
-</filter>
-```
-
-Pricing filter:
-```
-<filter id="c3-noise">
-  <feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="2" stitchTiles="stitch" />
-  <feComponentTransfer><feFuncA type="linear" slope="0.075" /></feComponentTransfer>
-  <feComposite in2="SourceGraphic" operator="in" result="noise" />
-  <feBlend in="SourceGraphic" in2="noise" mode="overlay" />
-</filter>
-```
-
-## Shared primitives
-
-**AppleLogo** — inline SVG Apple mark, `viewBox="0 0 384 512"`, `fill="currentColor"`, default `w-4 h-4`. Path:
-`M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z`.
-
-**LogoMark** — abstract 4-quadrant curve mark, `viewBox="0 0 256 256"`, default `w-8 h-8`, white fill. Path:
-`M 0 128 C 70.692 128 128 185.308 128 256 L 64 256 C 64 220.654 35.346 192 0 192 Z M 256 192 C 220.654 192 192 220.654 192 256 L 128 256 C 128 185.308 185.308 128 256 128 Z M 128 0 C 128 70.692 70.692 128 0 128 L 0 64 C 35.346 64 64 35.346 64 0 Z M 192 0 C 192 35.346 220.654 64 256 64 L 256 128 C 185.308 128 128 70.692 128 0 Z`.
-
-**AppleButton** — rounded-full white pill, Apple logo + "Download Aura" label + ChevronRight. Chevron translates `+1px` on group hover. Classes: `group inline-flex items-center justify-center gap-2 rounded-full bg-white text-black font-medium text-sm px-5 py-3 transition-all hover:bg-white/90 active:scale-[0.98]`. Accepts `label` and `full` props.
-
-**SectionEyebrow** — `<span className="w-1.5 h-1.5 rounded-full bg-white" />` + label, optional tag pill with `px-2 py-0.5 rounded-full border border-white/10 text-white/50`.
-
-**gradientStyle** used on the headline word "Revitalized":
-```
-backgroundImage: 'linear-gradient(to right, #091020 0%, #0B2551 12.5%, #A4F4FD 32.5%, #00d2ff 50%, #0B2551 67.5%, #091020 87.5%, #091020 100%)'
-backgroundSize: '200% auto'
-WebkitBackgroundClip: 'text' (+ backgroundClip text)
-color: 'transparent'; WebkitTextFillColor: 'transparent'
-filter: 'url(#c3-noise)'
-```
-
-Shiny animation (`.animate-shiny`): 6s linear infinite, keyframes shiny `{0%: background-position: -200% center; 100%: 200% center;}`.
-
-## Liquid-glass utility (used across cards)
-
-```
-.liquid-glass {
-  background: rgba(255,255,255,0.01);
-  background-blend-mode: luminosity;
-  backdrop-filter: blur(4px);
-  border: none;
-  box-shadow: inset 0 1px 1px rgba(255,255,255,0.1);
-  position: relative; overflow: hidden;
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>恒望法律事务所 | HENG WANG LAW FIRM · 新山</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Noto+Serif+SC:wght@300;400;600&family=Noto+Sans+SC:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold: #B8960C;
+  --gold-light: #D4AF37;
+  --gold-pale: #F0E6B2;
+  --ink: #0E0E0E;
+  --ink-soft: #1A1A1A;
+  --paper: #F9F6EF;
+  --paper-dark: #EDE8DC;
+  --grey: #6B6B6B;
+  --grey-light: #9A9A9A;
+  --white: #FDFCF9;
+  --divider: rgba(184,150,12,0.25);
 }
-.liquid-glass::before {
-  content: ''; position: absolute; inset: 0; border-radius: inherit;
-  padding: 1.4px;
-  background: linear-gradient(180deg,
-    rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.15) 20%,
-    rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%,
-    rgba(255,255,255,0.15) 80%, rgba(255,255,255,0.45) 100%);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor; mask-composite: exclude;
-  pointer-events: none;
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; font-size: 16px; }
+
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  overflow-x: hidden;
+  font-weight: 300;
 }
-```
 
-## Section 1 — Navbar
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--paper-dark); }
+::-webkit-scrollbar-thumb { background: var(--gold); }
 
-Max-width `max-w-6xl mx-auto px-6`. Motion nav fades/slides down (opacity 0 -> 1, y -10 -> 0, 0.6s easeOut). Left: just the `LogoMark` (NO "Aura" word). Center (`hidden md:flex gap-8`): links `['Solutions','Pricing','Blog','Documentation','Careers']` each `text-white/70 text-sm font-medium hover:text-white` with staggered y animation (delay 0.1 + i*0.05). Right desktop: `<AppleButton />` default label "Download Aura". Mobile right: `w-10 h-10 rounded-full border border-white/10 bg-white/5` Menu icon button.
+/* ── NAV ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 5vw;
+  height: 72px;
+  background: rgba(249,246,239,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--divider);
+  transition: all .3s ease;
+}
+nav.scrolled {
+  height: 60px;
+  background: rgba(249,246,239,0.97);
+  box-shadow: 0 2px 24px rgba(0,0,0,0.06);
+}
+.nav-logo {
+  display: flex; flex-direction: column; gap: 1px;
+}
+.nav-logo .cn { font-family: 'Noto Serif SC', serif; font-size: .95rem; font-weight: 600; letter-spacing: .12em; color: var(--ink); }
+.nav-logo .en { font-family: 'Cormorant Garamond', serif; font-size: .7rem; font-weight: 300; letter-spacing: .25em; color: var(--grey); text-transform: uppercase; }
 
-## Section 2 — Hero
+.nav-links { display: flex; gap: 2rem; list-style: none; align-items: center; }
+.nav-links a { font-size: .78rem; letter-spacing: .12em; color: var(--grey); text-decoration: none; transition: color .2s; font-weight: 400; }
+.nav-links a:hover { color: var(--gold); }
+.nav-cta {
+  font-size: .72rem; letter-spacing: .15em; padding: .5rem 1.2rem;
+  border: 1px solid var(--gold); color: var(--gold); background: transparent;
+  text-decoration: none; transition: all .2s; font-weight: 400;
+}
+.nav-cta:hover { background: var(--gold); color: var(--white) !important; }
 
-Centered section, `pt-16 md:pt-28 pb-20 text-center flex flex-col items-center`.
-Motion h1 (delay 0.3, 0.8s cubic-bezier(.22,1,.36,1)), classes `text-4xl md:text-7xl font-semibold tracking-tight leading-[0.9]`:
-- Line 1: "Your email." (white)
-- Line 2: "Revitalized" — apply `animate-shiny` and the `gradientStyle` inline.
+/* Hamburger */
+.hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 4px; }
+.hamburger span { display: block; width: 22px; height: 1.5px; background: var(--ink); transition: all .3s; }
+.hamburger.open span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+.hamburger.open span:nth-child(2) { opacity: 0; }
+.hamburger.open span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
 
-Then motion paragraph (delay 0.5): `mt-8 text-white/60 max-w-md text-base leading-[1.5]`:
-> "Aura is the premier inbox platform for the current era. It leverages powerful AI to organize, prioritize, and refine your messages into total clarity."
+.mobile-menu {
+  display: none; position: fixed; inset: 0; z-index: 99;
+  background: var(--paper); flex-direction: column; align-items: center; justify-content: center;
+  gap: 2.5rem;
+}
+.mobile-menu.open { display: flex; }
+.mobile-menu a { font-family: 'Noto Serif SC', serif; font-size: 1.3rem; letter-spacing: .12em; color: var(--ink); text-decoration: none; }
+.mobile-menu a:hover { color: var(--gold); }
 
-Then motion div (delay 0.7) with `<AppleButton />` and `text-xs text-white/40` "Download for Intel / Apple Silicon".
+/* ── HERO ── */
+.hero {
+  height: 100vh; min-height: 640px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; overflow: hidden; text-align: center; padding: 0 5vw;
+}
+.hero-bg {
+  position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(160deg, #0E0E0E 0%, #1C1610 55%, #2A1F0A 100%);
+}
+.hero-texture {
+  position: absolute; inset: 0; z-index: 1;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23B8960C' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+.hero-line-left {
+  position: absolute; left: 6vw; top: 50%; transform: translateY(-50%);
+  width: 1px; height: 35vh; background: linear-gradient(to bottom, transparent, var(--gold), transparent);
+  z-index: 2;
+}
+.hero-line-right {
+  position: absolute; right: 6vw; top: 50%; transform: translateY(-50%);
+  width: 1px; height: 35vh; background: linear-gradient(to bottom, transparent, var(--gold), transparent);
+  z-index: 2;
+}
+.hero-content { position: relative; z-index: 3; }
+.hero-eyebrow {
+  font-family: 'Cormorant Garamond', serif; font-size: .72rem; letter-spacing: .4em;
+  color: var(--gold-light); text-transform: uppercase; margin-bottom: 2rem;
+  opacity: 0; animation: fadeUp .8s .3s forwards;
+}
+.hero-title-cn {
+  font-family: 'Noto Serif SC', serif; font-size: clamp(2.4rem, 6vw, 5rem);
+  font-weight: 600; color: var(--white); letter-spacing: .08em;
+  line-height: 1.15; margin-bottom: .6rem;
+  opacity: 0; animation: fadeUp .8s .5s forwards;
+}
+.hero-title-en {
+  font-family: 'Cormorant Garamond', serif; font-size: clamp(.9rem, 2vw, 1.3rem);
+  font-weight: 300; color: var(--gold-light); letter-spacing: .35em;
+  text-transform: uppercase; margin-bottom: 2.5rem;
+  opacity: 0; animation: fadeUp .8s .7s forwards;
+}
+.hero-divider {
+  width: 60px; height: 1px; background: var(--gold); margin: 0 auto 2.5rem;
+  opacity: 0; animation: fadeUp .8s .9s forwards;
+}
+.hero-sub {
+  font-size: .85rem; color: rgba(255,255,255,.5); letter-spacing: .1em;
+  max-width: 400px; line-height: 1.9;
+  opacity: 0; animation: fadeUp .8s 1.1s forwards;
+}
+.hero-cta-group {
+  display: flex; gap: 1rem; justify-content: center; margin-top: 2.5rem; flex-wrap: wrap;
+  opacity: 0; animation: fadeUp .8s 1.3s forwards;
+}
+.btn-primary {
+  padding: .75rem 2rem; background: var(--gold); color: var(--ink);
+  font-size: .75rem; letter-spacing: .18em; text-decoration: none; font-weight: 400;
+  transition: all .25s; border: 1px solid var(--gold);
+}
+.btn-primary:hover { background: var(--gold-light); }
+.btn-outline {
+  padding: .75rem 2rem; background: transparent; color: rgba(255,255,255,.7);
+  font-size: .75rem; letter-spacing: .18em; text-decoration: none; font-weight: 300;
+  border: 1px solid rgba(255,255,255,.2); transition: all .25s;
+}
+.btn-outline:hover { border-color: var(--gold); color: var(--gold); }
 
-## Section 3 — macOS menu bar strip
+.hero-scroll {
+  position: absolute; bottom: 2.5rem; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: .6rem; z-index: 3;
+  opacity: 0; animation: fadeUp .8s 1.6s forwards;
+}
+.hero-scroll span { font-size: .6rem; letter-spacing: .25em; color: rgba(255,255,255,.35); text-transform: uppercase; }
+.scroll-line { width: 1px; height: 40px; background: linear-gradient(to bottom, var(--gold), transparent); animation: scrollPulse 1.8s infinite; }
 
-Full-width bar `h-10 bg-black/40 backdrop-blur-md border-t border-b border-white/10`. Inside `max-w-6xl mx-auto px-6 h-full flex items-center justify-between text-xs`. Left: `AppleLogo w-3.5 h-3.5`, bold white "Aura", then menu items `['File','Edit','View','Go','Window','Help']` (progressive hiding: index>2 `hidden sm:inline`, index>3 `hidden md:inline`). Right: `Search w-3.5 h-3.5` + "Wed May 6 1:09 PM". Enters with delay 0.9.
+/* ── SECTION COMMON ── */
+section { padding: 7rem 5vw; }
+.section-label {
+  font-family: 'Cormorant Garamond', serif; font-size: .7rem; letter-spacing: .4em;
+  text-transform: uppercase; color: var(--gold); margin-bottom: 1rem;
+}
+.section-title-cn {
+  font-family: 'Noto Serif SC', serif; font-size: clamp(1.6rem, 3.5vw, 2.8rem);
+  font-weight: 600; color: var(--ink); letter-spacing: .05em; line-height: 1.3;
+}
+.section-title-en {
+  font-family: 'Cormorant Garamond', serif; font-size: clamp(.75rem, 1.2vw, .9rem);
+  font-weight: 300; letter-spacing: .3em; text-transform: uppercase; color: var(--grey-light);
+  margin-top: .4rem;
+}
+.gold-bar { width: 40px; height: 2px; background: var(--gold); margin: 1.5rem 0; }
 
-## Section 4 — Inbox mockup
+/* ── ABOUT ── */
+#about { background: var(--white); }
+.about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6rem; align-items: center; max-width: 1100px; margin: 4rem auto 0; }
+.about-text p { font-size: .88rem; line-height: 2; color: var(--grey); margin-bottom: 1.2rem; }
+.about-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+.stat-card {
+  padding: 2rem 1.5rem; border: 1px solid var(--divider); background: var(--paper);
+  text-align: center; position: relative; overflow: hidden;
+}
+.stat-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--gold); transform: scaleX(0); transform-origin: left; transition: transform .4s;
+}
+.stat-card:hover::before { transform: scaleX(1); }
+.stat-num { font-family: 'Cormorant Garamond', serif; font-size: 2.8rem; font-weight: 300; color: var(--gold); line-height: 1; }
+.stat-label { font-size: .72rem; letter-spacing: .12em; color: var(--grey); margin-top: .5rem; }
 
-`max-w-6xl mx-auto px-6 py-16 md:py-24`. Outer container `relative rounded-2xl overflow-hidden border border-white/10 bg-[#0e1014]/90 backdrop-blur-2xl`. Motion enters from y:40 at delay 1.1.
+/* ── SERVICES ── */
+#services { background: var(--paper); }
+.services-header { text-align: center; max-width: 600px; margin: 0 auto; }
+.services-header .gold-bar { margin: 1.5rem auto; }
+.services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5px; margin-top: 4rem; background: var(--divider); }
+.service-card {
+  background: var(--white); padding: 2.5rem 2rem;
+  transition: all .3s; cursor: default; position: relative; overflow: hidden;
+}
+.service-card::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(184,150,12,.04), transparent);
+  opacity: 0; transition: opacity .3s;
+}
+.service-card:hover { background: var(--ink-soft); }
+.service-card:hover .svc-title, .service-card:hover .svc-title-en { color: var(--gold-light); }
+.service-card:hover .svc-desc { color: rgba(255,255,255,.55); }
+.service-card:hover .svc-icon { color: var(--gold); }
+.svc-icon { font-size: 1.6rem; margin-bottom: 1.5rem; color: var(--gold); }
+.svc-title { font-family: 'Noto Serif SC', serif; font-size: 1rem; font-weight: 600; color: var(--ink); letter-spacing: .06em; }
+.svc-title-en { font-family: 'Cormorant Garamond', serif; font-size: .72rem; letter-spacing: .2em; color: var(--grey-light); text-transform: uppercase; margin-top: .25rem; }
+.svc-divider { width: 24px; height: 1px; background: var(--gold); margin: 1rem 0; }
+.svc-desc { font-size: .8rem; line-height: 1.85; color: var(--grey); }
 
-Title bar: three traffic lights `#ff5f57`, `#febc2e`, `#28c840` (each `w-3 h-3 rounded-full`); center label "Aura — Inbox" `text-xs text-white/50`.
+/* ── CASES ── */
+#cases { background: var(--ink-soft); }
+#cases .section-label { color: var(--gold-light); }
+#cases .section-title-cn { color: var(--white); }
+.cases-header { max-width: 1100px; margin: 0 auto 4rem; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1.5rem; }
+.cases-note { font-size: .75rem; color: rgba(255,255,255,.3); letter-spacing: .08em; max-width: 280px; line-height: 1.7; }
+.cases-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1px; max-width: 1100px; margin: 0 auto; background: rgba(255,255,255,.06); }
+.case-card {
+  background: var(--ink-soft); padding: 2.5rem 2rem;
+  border-top: 1px solid rgba(255,255,255,.05); transition: background .3s;
+}
+.case-card:hover { background: #252014; }
+.case-tag {
+  display: inline-block; font-size: .6rem; letter-spacing: .2em; text-transform: uppercase;
+  padding: .25rem .7rem; border: 1px solid var(--gold); color: var(--gold); margin-bottom: 1.2rem;
+}
+.case-title { font-family: 'Noto Serif SC', serif; font-size: .95rem; font-weight: 600; color: var(--white); line-height: 1.6; margin-bottom: .8rem; }
+.case-desc { font-size: .78rem; line-height: 1.85; color: rgba(255,255,255,.45); margin-bottom: 1.5rem; }
+.case-result { font-size: .72rem; letter-spacing: .1em; color: var(--gold-light); display: flex; align-items: center; gap: .5rem; }
+.case-result::before { content: ''; display: inline-block; width: 20px; height: 1px; background: var(--gold); }
+.case-fb { font-size: .65rem; color: rgba(255,255,255,.2); margin-top: .6rem; letter-spacing: .05em; }
 
-Body `grid grid-cols-12 h-[520px]`:
+/* ── WHY US ── */
+#why { background: var(--paper-dark); }
+.why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 3rem; max-width: 1100px; margin: 4rem auto 0; }
+.why-item { display: flex; flex-direction: column; gap: .8rem; }
+.why-num { font-family: 'Cormorant Garamond', serif; font-size: 3rem; font-weight: 300; color: var(--gold-pale); line-height: 1; }
+.why-title { font-family: 'Noto Serif SC', serif; font-size: .95rem; font-weight: 600; color: var(--ink); }
+.why-desc { font-size: .78rem; line-height: 1.9; color: var(--grey); }
 
-**Sidebar (col-span-3, border-r, bg-black/30, p-4):**
-- White "Compose with Aura" button with `Sparkles` icon (`rounded-lg bg-white text-black text-xs font-semibold px-3 py-2`).
-- Nav items (icon + label + optional count): Inbox (12, active), Starred (3), Sent, Drafts (2), Archive, Trash. Active uses `bg-white/10 text-white`, others `text-white/60 hover:bg-white/5`.
-- Labels section: uppercase tracking "Labels" small title, then 4 color dots: Work `#00d2ff`, Personal `#A4F4FD`, Travel `#f59e0b`, Finance `#10b981`.
+/* ── CONTACT ── */
+#contact { background: var(--ink); }
+#contact .section-label { color: var(--gold-light); }
+#contact .section-title-cn { color: var(--white); }
+.contact-wrap { max-width: 1100px; margin: 4rem auto 0; display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: start; }
+.contact-info { display: flex; flex-direction: column; gap: 2rem; }
+.contact-item { display: flex; gap: 1.2rem; align-items: flex-start; }
+.contact-icon { font-size: 1rem; color: var(--gold); flex-shrink: 0; margin-top: .15rem; }
+.contact-detail .label { font-size: .65rem; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); margin-bottom: .3rem; }
+.contact-detail .value { font-size: .85rem; color: rgba(255,255,255,.7); line-height: 1.7; }
+.contact-form { display: flex; flex-direction: column; gap: 1rem; }
+.form-group { display: flex; flex-direction: column; gap: .4rem; }
+.form-group label { font-size: .65rem; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+.form-group input, .form-group textarea, .form-group select {
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+  color: var(--white); padding: .75rem 1rem; font-size: .82rem; font-family: inherit;
+  outline: none; transition: border-color .2s; resize: none;
+}
+.form-group select option { background: var(--ink); color: var(--white); }
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--gold); }
+.form-group textarea { min-height: 110px; }
+.form-submit {
+  margin-top: .5rem; padding: .85rem 0; background: var(--gold); color: var(--ink);
+  border: none; font-size: .75rem; letter-spacing: .2em; font-family: inherit;
+  cursor: pointer; transition: background .2s; font-weight: 400;
+}
+.form-submit:hover { background: var(--gold-light); }
+#form-success { display: none; text-align: center; padding: 2rem; color: var(--gold); font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; letter-spacing: .05em; }
 
-**Message list (col-span-4, border-r):**
-- Search header: `Search` icon + placeholder "Search mail".
-- 6 messages with name, subject, preview, time, unread/active flags:
-  - Linear — "Weekly product digest" — "Your team shipped 23 issues this week..." — 9:41 AM — unread + active
-  - Sophia Chen — "Re: Q3 roadmap review" — "Thanks for sending the deck over. I had a few thoughts..." — 8:12 AM — unread
-  - Figma — "Marcus commented on your file" — "Love the new direction on the landing hero." — Yesterday
-  - Stripe — "Payout of $12,480.00 sent" — "Your payout is on its way to your bank..." — Yesterday
-  - Vercel — "Deployment ready for aura-web" — "Preview is live at aura-web-g3f.vercel.app" — Mon
-  - GitHub — "[aura/core] PR #482 approved" — "david-lim approved your pull request." — Mon
+/* ── FOOTER ── */
+footer {
+  background: #080808; padding: 2.5rem 5vw;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+  border-top: 1px solid rgba(184,150,12,.15);
+}
+.footer-logo .cn { font-family: 'Noto Serif SC', serif; font-size: .85rem; font-weight: 600; color: rgba(255,255,255,.5); letter-spacing: .1em; }
+.footer-logo .en { font-family: 'Cormorant Garamond', serif; font-size: .65rem; letter-spacing: .25em; color: rgba(255,255,255,.25); }
+.footer-copy { font-size: .65rem; color: rgba(255,255,255,.2); letter-spacing: .08em; }
+.footer-links { display: flex; gap: 1.5rem; }
+.footer-links a { font-size: .65rem; letter-spacing: .1em; color: rgba(255,255,255,.3); text-decoration: none; transition: color .2s; }
+.footer-links a:hover { color: var(--gold); }
 
-**Reader (col-span-5):**
-- Toolbar with Reply, Forward, Archive, Trash2 icon buttons (each `w-7 h-7 rounded-md hover:bg-white/5`) and a MoreHorizontal on the right.
-- Header: "Weekly product digest"; sender avatar gradient bubble `w-7 h-7 rounded-full bg-gradient-to-br from-[#00d2ff] to-[#0B2551]` with "L"; "Linear" + "to me · 9:41 AM"; "Work" pill.
-- Body:
-  - Card with `Sparkles` icon (color `#A4F4FD`) labeled "Summary by Aura" and text "Your team closed 23 issues, merged 14 PRs, and shipped 2 features. Top contributor: Marcus. No action needed."
-  - Paragraphs: "Hi team,", "Here is your weekly digest of everything happening across your projects. This was a strong week with significant progress on the Q3 roadmap.", "Twenty-three issues were closed, fourteen pull requests were merged, and two customer-facing features went out. The velocity trend continues to climb.", "Let me know if you would like a deeper breakdown by project or contributor.", "— The Linear team" (`text-white/50`).
-  - Attachment pill with `Paperclip` icon: "digest-may-6.pdf".
+/* ── BACK TO TOP ── */
+#btt {
+  position: fixed; bottom: 2rem; right: 2rem; z-index: 99;
+  width: 42px; height: 42px; background: var(--gold); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: all .3s; color: var(--ink); font-size: 1rem;
+}
+#btt.visible { opacity: 1; pointer-events: all; }
+#btt:hover { background: var(--gold-light); }
 
-## Section 5 — FeatureTriage
+/* ── ANIMATE ON SCROLL ── */
+.reveal {
+  opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s ease;
+}
+.reveal.in { opacity: 1; transform: translateY(0); }
+.reveal-delay-1 { transition-delay: .1s; }
+.reveal-delay-2 { transition-delay: .2s; }
+.reveal-delay-3 { transition-delay: .3s; }
+.reveal-delay-4 { transition-delay: .4s; }
 
-`max-w-6xl mx-auto px-6 py-20 md:py-28`, two-column grid `grid md:grid-cols-2 gap-10 md:gap-16 items-start`.
+/* ── KEYFRAMES ── */
+@keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:none; } }
+@keyframes scrollPulse { 0%,100% { opacity:.4; } 50% { opacity:1; } }
 
-Left column motion (y 20 -> 0, 0.7s): `SectionEyebrow label="Triage" tag="AI-native"`, h2 `mt-5 text-3xl md:text-5xl font-semibold tracking-tight leading-[1.02]`: "Clear your inbox" <br/> "in a single pass.". Paragraph `mt-6 text-white/60 text-base leading-[1.6] max-w-md`: "Aura reads every message, understands intent, and routes the noise away from the signal. Focus on what moves your day forward — the rest handles itself." Chips row (`text-xs text-white/70 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.03]`): "Auto-categorize", "Snooze for later", "Silent newsletters", "One-tap unsubscribe".
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .about-grid { grid-template-columns: 1fr; gap: 3rem; }
+  .contact-wrap { grid-template-columns: 1fr; gap: 3rem; }
+  .cases-header { flex-direction: column; align-items: flex-start; }
+}
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+  .hamburger { display: flex; }
+  section { padding: 5rem 5vw; }
+  .hero-line-left, .hero-line-right { display: none; }
+  .about-stats { grid-template-columns: 1fr 1fr; }
+  footer { flex-direction: column; align-items: center; text-align: center; }
+  .footer-links { flex-wrap: wrap; justify-content: center; }
+}
+@media (max-width: 480px) {
+  .about-stats { grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .stat-card { padding: 1.5rem 1rem; }
+  .hero-cta-group { flex-direction: column; align-items: center; }
+  .btn-primary, .btn-outline { width: 200px; text-align: center; }
+}
+</style>
+</head>
+<body>
 
-Right column: `liquid-glass rounded-2xl p-5` card. Eyebrow text: "Today · 42 messages triaged". Four sub-cards (each `liquid-glass rounded-lg p-3`):
-- Priority (4) `#ffffff` — items: "Sophia Chen — Q3 review", "David Lim — contract signoff"
-- Follow-up (7) `#e5e5e5` — items: "Marcus — design review", "Figma — comment thread"
-- Updates (18) `#a3a3a3` — items: "Vercel — deploy ready", "GitHub — PR #482 merged"
-- Archived (13) `#525252` — items: "Stripe payout · Newsletter · Receipts"
-
-## Section 6 — LogoCloud
-
-`max-w-6xl mx-auto px-6 py-16 md:py-20`. Centered kicker `text-xs uppercase tracking-widest text-white/40`: "Trusted by the world's most thoughtful teams". Grid `mt-10 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-6`, each logo name as `text-sm font-semibold tracking-tight text-white/50 hover:text-white`. Names: Linear, Vercel, Figma, Stripe, Ramp, Notion, Loom, Arc. Each fades in with stagger 0.05.
-
-## Section 7 — Testimonials
-
-`max-w-6xl mx-auto px-6 py-20 md:py-28 border-t border-white/10`. 3-col grid of `liquid-glass rounded-2xl p-6` figures. Each: blockquote `text-sm text-white/80 leading-[1.6]` wrapped in quotes, `figcaption mt-6 pt-5 border-t border-white/10` with name `text-sm font-semibold`, role `text-xs text-white/50`, company uppercased `text-xs text-white font-semibold tracking-wide`.
-- "Aura gave our leadership team four hours of their week back. It reads like email from the future." — Parker Wilf, Group Product Manager, MERCURY
-- "The command palette alone has changed how I process messages. I can't imagine going back to a traditional client." — Andrew von Rosenbach, Senior Engineering Program Manager, COHERE
-- "Triage that actually understands context. Our team stopped dreading Monday morning inboxes." — Mathies Christensen, Engineering Manager, LUNAR
-
-## Section 8 — Pricing
-
-Uses custom CSS classes (not Tailwind) for cinematic typography.
-
-Outer `<section className="c3-pricing-section">` with its own `<svg>` defining the `c3-noise` pricing filter described earlier.
-
-Watermark (giant hero headline as backdrop):
-```
-<div className="c3-watermark-container">
-  <div className="c3-watermark-main">
-    <span className="c3-watermark-line-1">Your email.</span>
-    <span className="c3-watermark-line-2">Revitalized</span>
+<!-- NAV -->
+<nav id="nav">
+  <div class="nav-logo">
+    <span class="cn">新山恒望法律事务所</span>
+    <span class="en">Heng Wang Law Firm</span>
   </div>
+  <ul class="nav-links">
+    <li><a href="#about">关于我们</a></li>
+    <li><a href="#services">服务项目</a></li>
+    <li><a href="#cases">案例分享</a></li>
+    <li><a href="#why">为何选择我们</a></li>
+    <li><a href="#contact" class="nav-cta">免费10分钟咨询</a></li>
+  </ul>
+  <div class="hamburger" id="hamburger" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </div>
+</nav>
+
+<!-- MOBILE MENU -->
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#about" onclick="closeMenu()">关于我们</a>
+  <a href="#services" onclick="closeMenu()">服务项目</a>
+  <a href="#cases" onclick="closeMenu()">案例分享</a>
+  <a href="#why" onclick="closeMenu()">为何选择我们</a>
+  <a href="#contact" onclick="closeMenu()">免费咨询</a>
 </div>
-```
 
-State: `yearly` boolean toggle. Three plans:
-- **Free** — "Free" — "For creators taking their first steps with Forma." — Up to 3 projects in the cloud / Image export up to 1080p / Basic editing tools / Free templates and icons / Access via web and mobile app.
-- **Standard** — monthly "$9,99/m" yearly "$99,99/y" — "For freelancers and small teams who need more freedom and flexibility." — Up to 50 projects in the cloud / Export up to 4K / Advanced editing toolkit / Team collaboration (up to 5 members) / Access to premium template library.
-- **Pro** (`c3-card-pro`) — monthly "$19,99/m" yearly "$199,99/y" — "For studios, agencies, and professional creators working with brands." — Unlimited projects / Export up to 8K + animations / AI-powered content generation tools / Unlimited team members / Brand customization.
+<!-- HERO -->
+<section class="hero" id="home">
+  <div class="hero-bg"></div>
+  <div class="hero-texture"></div>
+  <div class="hero-line-left"></div>
+  <div class="hero-line-right"></div>
+  <div class="hero-content">
+    <p class="hero-eyebrow">Johor Bahru · Malaysia · Est. Since</p>
+    <h1 class="hero-title-cn">新山恒望法律事务所</h1>
+    <p class="hero-title-en">Heng Wang Law Firm</p>
+    <div class="hero-divider"></div>
+    <p class="hero-sub">专业 · 诚信 · 尽责<br>为您的权益提供坚实的法律保障</p>
+    <div class="hero-cta-group">
+      <a href="#contact" class="btn-primary">立即咨询</a>
+      <a href="#services" class="btn-outline">了解服务</a>
+    </div>
+  </div>
+  <div class="hero-scroll">
+    <div class="scroll-line"></div>
+    <span>Scroll</span>
+  </div>
+</section>
 
-Each card renders: `c3-tier-small` (tier), `c3-tier-large` (price), `c3-desc`, `c3-list` of checkmark rows (white circle `c3-check` with white SVG check), `c3-btn` "Choose Plan".
+<!-- ABOUT -->
+<section id="about">
+  <div style="max-width:1100px;margin:0 auto;">
+    <div class="reveal">
+      <p class="section-label">About Us</p>
+      <h2 class="section-title-cn">关于我们</h2>
+      <div class="section-title-en">Our Firm</div>
+      <div class="gold-bar"></div>
+    </div>
+    <div class="about-grid">
+      <div class="about-text reveal">
+        <p>恒望法律事务所扎根于新山，是一家提供全面法律服务的专业律师事务所。我们秉持"专业、诚信、尽责"的核心理念，致力于为个人及企业客户提供高效、务实的法律解决方案。</p>
+        <p>无论是日常法律咨询、合同纠纷，还是刑事辩护、遗产规划，我们的团队均能以丰富的实战经验和严谨的专业态度，全力维护客户的合法权益。</p>
+        <p>我们相信，优质的法律服务不仅是知识的传递，更是对每一位当事人的用心陪伴。从第一次咨询到案件圆满解决，恒望始终与您同行。</p>
+        <a href="#contact" class="btn-primary" style="display:inline-block;margin-top:1.5rem;">预约咨询</a>
+      </div>
+      <div class="about-stats reveal reveal-delay-2">
+        <div class="stat-card">
+          <div class="stat-num">超过7年</div>
+          <div class="stat-label">执业年资</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">200+</div>
+          <div class="stat-label">处理案例</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">98%</div>
+          <div class="stat-label">客户满意度</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">8</div>
+          <div class="stat-label">专业服务领域</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
-Below: `c3-toggle-wrap` with "Yearly" label and a pill toggle (white knob black when off; when `.active`, background `rgba(255,255,255,0.2)`, knob white, translated 24px).
+<!-- SERVICES -->
+<section id="services">
+  <div class="services-header reveal">
+    <p class="section-label">Practice Areas</p>
+    <h2 class="section-title-cn">服务项目</h2>
+    <div class="section-title-en">Our Services</div>
+    <div class="gold-bar"></div>
+    <p style="font-size:.82rem;color:var(--grey);line-height:1.9;max-width:480px;margin:0 auto;">我们提供广泛的法律服务，专注于为客户提供专业、高效的法律支持与保障。</p>
+  </div>
+  <div class="services-grid" style="max-width:1100px;margin:4rem auto 0;">
 
-Pricing CSS (key values, include exactly):
-- `.c3-pricing-section { position: relative; padding: 40px 20px 80px; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; }`
-- `.c3-watermark-container { position: relative; width: 100%; max-width: 1100px; text-align: center; margin-top: 40px; z-index: 2; }`
-- `.c3-watermark-main { font-size: 9rem; font-weight: 800; line-height: 0.9; letter-spacing: -0.05em; filter: url(#c3-noise); display: flex; flex-direction: column; align-items: center; }`
-- `.c3-watermark-line-1 { color: #fff; }`
-- `.c3-watermark-line-2 { background: linear-gradient(to right, #091020 0%, #0B2551 25%, #A4F4FD 65%, #00d2ff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }`
-- `.c3-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; width: 100%; max-width: 1100px; margin-top: 60px; transform: translateX(20px); position: relative; z-index: 3; }`
-- `.c3-card { background: linear-gradient(135deg, rgba(0,0,0,0.7), rgba(0,0,0,0.4)); backdrop-filter: blur(14px) brightness(0.91); border: 1px solid rgba(255,255,255,1); border-radius: 44px; padding: 50px 24px; min-height: 580px; display: flex; flex-direction: column; transition: all 0.6s cubic-bezier(.22,1,.36,1); overflow: hidden; position: relative; }`
-- `.c3-card::before { content:''; position:absolute; inset:0; border-radius:inherit; background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 50%); pointer-events:none; }`
-- `.c3-card:hover { background: rgba(15,15,15,0.6); border-color: rgba(34,211,238,0.7); transform: translateY(-12px) scale(1.01); }`
-- `.c3-card-pro { background: linear-gradient(135deg, rgba(0,0,0,0.85), rgba(0,0,0,0.55)); }`
-- `.c3-tier-small { font-size: 1.1rem; font-weight: 400; color: rgba(255,255,255,0.6); }`
-- `.c3-tier-large { font-size: 2.8rem; font-weight: 500; letter-spacing: -0.02em; color: #fff; margin-top: 8px; }`
-- `.c3-desc { font-size: 0.88rem; color: rgba(255,255,255,0.45); min-height: 3.2em; margin-top: 16px; margin-bottom: 40px; line-height: 1.5; }`
-- `.c3-list li { display:flex; align-items:flex-start; gap: 14px; font-size: 0.92rem; color: rgba(255,255,255,0.8); margin-bottom: 18px; line-height: 1.4; }`
-- `.c3-check { width:28px; height:28px; border-radius:50%; background: rgba(255,255,255,0.15); display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }`
-- `.c3-btn { background:#fff; color:#000; padding: 10px 32px; border-radius: 100px; font-weight:600; font-size: 0.88rem; margin-top:auto; border:none; cursor:pointer; align-self:center; transition: all 0.3s cubic-bezier(.22,1,.36,1); }`
-- `.c3-btn:hover { background:#f5f5f5; transform:scale(1.02); box-shadow: 0 8px 24px rgba(255,255,255,0.15); }`
-- `.c3-toggle-wrap { display:flex; align-items:center; justify-content:flex-end; gap:12px; width:100%; max-width:1100px; margin-top:32px; padding-right:20px; }`
-- `.c3-toggle { width:52px; height:28px; background:#fff; border-radius:100px; position:relative; cursor:pointer; border:none; transition: background 0.3s cubic-bezier(.4,0,.2,1); padding:0; }`
-- `.c3-toggle-knob { width:20px; height:20px; background:#000; border-radius:50%; position:absolute; top:4px; left:4px; transition: all 0.3s cubic-bezier(.4,0,.2,1); }`
-- `.c3-toggle.active { background: rgba(255,255,255,0.2); }`
-- `.c3-toggle.active .c3-toggle-knob { transform: translateX(24px); background:#fff; }`
-- Media query `(max-width:1024px)`: `.c3-watermark-main { font-size: 3.5rem; filter:none; }`, `.c3-watermark-line-2 { background:none; -webkit-text-fill-color:#00d2ff; color:#00d2ff; }`, `.c3-grid` becomes horizontal scroll-snap flex (`display:flex; overflow-x:auto; scroll-snap-type:x mandatory; transform:none; width:100vw; padding:0 20px; gap:16px; scrollbar-width:none`), cards `flex: 0 0 320px; scroll-snap-align:center`, `.c3-grid::-webkit-scrollbar{display:none}`, `.c3-toggle-wrap { justify-content:center; padding-right:0; }`.
+    <div class="service-card reveal">
+      <div class="svc-icon">⚖️</div>
+      <div class="svc-title">民事诉讼</div>
+      <div class="svc-title-en">Civil Litigation</div>
+      <div class="svc-divider"></div>
+      <p class="svc-desc">代理各类民事纠纷、合同违约、债务追讨、财产争议等案件，维护当事人合法权益，提供完整的庭审策略与代理服务。</p>
+    </div>
 
-## Section 9 — FinalCTA
+    <div class="service-card reveal reveal-delay-1">
+      <div class="svc-icon">🏠</div>
+      <div class="svc-title">房产与地产</div>
+      <div class="svc-title-en">Property & Conveyancing</div>
+      <div class="svc-divider"></div>
+      <p class="svc-desc">提供房地产买卖、产权转让、贷款文件处理、租约起草及地产纠纷处理等一站式法律服务，确保交易安全顺畅。</p>
+    </div>
 
-`max-w-6xl mx-auto px-6 py-20 md:py-32`. Motion `liquid-glass relative overflow-hidden rounded-3xl px-8 py-16 md:py-24 text-center`. Radial glow overlay: `radial-gradient(600px circle at 50% 0%, rgba(255,255,255,0.15), transparent 70%)` at opacity 0.3.
-- h2 `text-4xl md:text-6xl font-semibold tracking-tight leading-[1.02]`: "Close the tabs." / "Open your day.".
-- Paragraph `mt-6 text-white/60 max-w-md mx-auto text-sm leading-[1.6]`: "Join thousands of builders, founders, and operators who treat email like a tool — not an obligation."
-- Buttons: `<AppleButton label="Download Aura" />` and `rounded-full border border-white/15 text-white text-sm font-medium px-5 py-3 hover:bg-white/5` "Talk to sales" + ChevronRight.
+    <div class="service-card reveal reveal-delay-2">
+      <div class="svc-icon">🏢</div>
+      <div class="svc-title">公司与商业法务</div>
+      <div class="svc-title-en">Corporate & Commercial</div>
+      <div class="svc-divider"></div>
+      <p class="svc-desc">协助公司注册设立、股东协议、并购交易、商业合同审查及企业治理合规，保障企业合法稳健运营。</p>
+    </div>
 
+    <div class="service-card reveal">
+      <div class="svc-icon">👨‍👩‍👧</div>
+      <div class="svc-title">家事与离婚</div>
+      <div class="svc-title-en">Family & Divorce</div>
+      <div class="svc-divider"></div>
+      <p class="svc-desc">处理离婚、子女抚养权、赡养费、家庭暴力保护令等家事纠纷，以专业与同理心陪伴当事人度过艰难时期。</p>
+    </div>
 
-Reproduce exactly — fonts, gradient stops, noise filters, copy strings, animation delays, and the CloudFront video URL `https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260508_064122_c4750c0e-7476-4b44-94a2-a85a65c63bf2.mp4`.
+    <div class="service-card reveal reveal-delay-1">
+      <div class="svc-icon">📜</div>
+      <div class="svc-title">遗嘱与遗产规划</div>
+      <div class="svc-title-en">Wills & Estate Planning</div>
+      <div class="svc-divider"></div>
+      <p class="svc-desc">起草遗嘱、设立信托、遗产分配及遗嘱认证，协助客户提前规划，保障家人权益，减少遗产纠纷。</p>
+    </div>
+
+    <div class="service-card reveal reveal-delay-2">
+      <div class="svc-icon">🛡️</div>
+      <div class="svc-title">刑事辩护</div>
+      <div class="svc-title-en">Criminal Defence</div>
+      <div class="svc-divider"></div>
+      <p class="svc-desc">为刑事案件被告提供专业辩护，包括警察调查协助、保释申请及庭审辩护，捍卫当事人合法权利。</p>
+    </div>
+
+    <div class="service-card reveal">
+      <div class="svc-icon">💼</div>
+      <div class="svc-title">劳资与雇佣</div>
+      <div class="svc-title-en">Employment Law</div>
+      <div class="svc-divider"></div>
+      <p class="svc-desc">处理不当解雇、劳资纠纷、雇佣合同审查及工伤赔偿，切实保障雇主与雇员双方的合法权益。</p>
+    </div>
+
+    <div class="service-card reveal reveal-delay-1">
+      <div class="svc-icon">📋</div>
+      <div class="svc-title">债务与破产</div>
+      <div class="svc-title-en">Debt & Insolvency</div>
+      <div class="svc-divider"></div>
+      <p class="svc-desc">提供债务重组、破产申请、债权追讨及公司清盘等服务，协助客户在财务困境中找到最优解决方案。</p>
+    </div>
+
+    <div class="service-card reveal reveal-delay-1">
+      <div class="svc-icon">🖋</div>
+      <div class="svc-title">翻译与公证</div>
+      <div class="svc-title-en"> Certified Translation & notary service</div>
+      <div class="svc-divider"></div>
+      <p class="svc-desc">专业翻译文书，文件服务并提供一站式公证与法庭认证盖章， 适合新加坡PR申请人士， 国外留学， 与外国人结婚等。</p>
+    </div>
+
+      <div class="service-card reveal reveal-delay-1">
+      <div class="svc-icon">📚</div>
+      <div class="svc-title">公司秘书与商标</div>
+      <div class="svc-title-en"> Company Secretary & tradamark</div>
+      <div class="svc-divider"></div>
+      <p class="svc-desc">企业合规的坚实后盾，让运营无后顾之忧。我们协助您在马来西亚（及海外）完成商标注册，防止抄袭和侵权。</p>
+    </div>
+    
+  </div>
+</section>
+
+<!-- CASES -->
+<section id="cases">
+  <div style="max-width:1100px;margin:0 auto;">
+    <div class="cases-header">
+      <div class="reveal">
+        <p class="section-label">Case Sharing</p>
+        <h2 class="section-title-cn">案例分享</h2>
+        <div class="section-title-en">From Our Practice</div>
+        <div class="gold-bar"></div>
+      </div>
+      <p class="cases-note reveal reveal-delay-2">以下案例整理自我们面子书专页的分享，所有当事人信息均已进行匿名处理，仅供参考。</p>
+    </div>
+    <div class="cases-grid">
+
+      <div class="case-card reveal">
+        <span class="case-tag">房产纠纷</span>
+        <h3 class="case-title">租客拖欠租金盗窃水电<br>屋主成功索回</h3>
+        <p class="case-desc">租客拖欠几个月租金， 屋主给予警告并要求其偿还欠款搬迁未果，我们受顾客委托出信并进入法庭程序，租客漏夜搬走并分期偿还欠款</p>
+        <div class="case-result">成功为客户索偿逾 RM 4，000</div>
+        <div class="case-fb">📘 来源：新山恒望法律脸书专页</div>
+      </div>
+
+      <div class="case-card reveal reveal-delay-1">
+        <span class="case-tag">劳资纠纷</span>
+        <h3 class="case-title">不当解雇<br>雇员获工业法庭裁定胜诉</h3>
+        <p class="case-desc">客户服务公司逾八年，遭雇主以莫须有理由突然终止合约，且未获任何赔偿。我们代理客户发出律师信，最终雇主和解并支付全额赔偿金。</p>
+        <div class="case-result">获赔约 RM 38,000</div>
+        <div class="case-fb">📘 来源：新山恒望法律脸书专页</div>
+      </div>
+
+      <div class="case-card reveal reveal-delay-2">
+        <span class="case-tag">债务追讨</span>
+        <h3 class="case-title">商业合同违约<br>法律信函迅速追回欠款</h3>
+        <p class="case-desc">客户为一家中小型企业，顾客收货后拖欠货款逾六个月、拒不还款。我们发出正式法律信函并启动诉讼程序，对方于诉讼程序开始后两周内全数偿清欠款。</p>
+        <div class="case-result">两周内追回欠款 RM 62,000</div>
+        <div class="case-fb">📘 来源：新山恒望法律事务所脸书专页</div>
+      </div>
+
+      <div class="case-card reveal">
+        <span class="case-tag">家事法</span>
+        <h3 class="case-title">离婚后子女抚养权<br>母亲获独家监护权</h3>
+        <p class="case-desc">客户离婚后，前夫拒绝配合子女抚养安排并停止支付赡养费。我们协助客户申请独家监护权令及赡养费执行令，高庭最终裁定子女由母亲监护，父亲须每月支付赡养费。</p>
+        <div class="case-result">成功取得监护权及每月赡养费</div>
+        <div class="case-fb">📘 来源：新山恒望法律事务所脸书专页</div>
+      </div>
+
+      <div class="case-card reveal reveal-delay-1">
+        <span class="case-tag">刑事辩护</span>
+        <h3 class="case-title">网络诈骗控状<br>客户获法庭无罪释放</h3>
+        <p class="case-desc">客户被指控参与网络诈骗活动，面临严重刑事控状。经深入调查，我们发现关键证据存在程序瑕疵，并成功在庭上推翻控方陈词，客户最终获法庭裁定无罪。</p>
+        <div class="case-result">裁定无罪释放，清白得以还原</div>
+        <div class="case-fb">📘 来源：新山恒望法律事务所脸书专页</div>
+      </div>
+
+      <div class="case-card reveal reveal-delay-2">
+        <span class="case-tag">遗产规划</span>
+        <h3 class="case-title">无遗嘱去世<br>协助家属顺利完成遗产分配</h3>
+        <p class="case-desc">客户父亲突然离世，未留下任何遗嘱，名下多项房产及银行户头无法处理。我们协助家属申请遗产管理令，依法完成所有财产转名与分配，化解家庭纷争。</p>
+        <div class="case-result">完成全部遗产分配程序</div>
+        <div class="case-fb">📘 来源：新山恒望法律脸书专页</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- WHY US -->
+<section id="why">
+  <div style="max-width:1100px;margin:0 auto;">
+    <div class="reveal" style="text-align:center;max-width:600px;margin:0 auto;">
+      <p class="section-label">Why Choose Us</p>
+      <h2 class="section-title-cn">为何选择恒望</h2>
+      <div class="section-title-en">Our Commitment</div>
+      <div class="gold-bar" style="margin:1.5rem auto;"></div>
+    </div>
+    <div class="why-grid">
+      <div class="why-item reveal">
+        <div class="why-num">01</div>
+        <div class="why-title">本地深耕，熟悉本土法律</div>
+        <p class="why-desc">扎根新山多年，深谙马来西亚及柔佛州本地法律体系与司法程序，提供最切实可行的本土化法律策略。</p>
+      </div>
+      <div class="why-item reveal reveal-delay-1">
+        <div class="why-num">02</div>
+        <div class="why-title">中英马三语服务</div>
+        <p class="why-desc">我们的团队精通中文、英文及马来文，消除语言障碍，确保您在法律过程中每一步都清晰明了、无后顾之忧。</p>
+      </div>
+      <div class="why-item reveal reveal-delay-2">
+        <div class="why-num">03</div>
+        <div class="why-title">透明收费，无隐藏费用</div>
+        <p class="why-desc">我们坚持透明的收费政策，在委托前清楚说明全部费用，让客户在毫无压力的情况下做出知情决定。</p>
+      </div>
+      <div class="why-item reveal reveal-delay-3">
+        <div class="why-num">04</div>
+        <div class="why-title">以人为本，全程陪伴</div>
+        <p class="why-desc">从初次咨询到案件完结，我们始终保持积极沟通，及时更新进展，让每位客户在整个法律旅程中感受到支持与安心。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div style="max-width:1100px;margin:0 auto;">
+    <div class="reveal">
+      <p class="section-label">Contact Us</p>
+      <h2 class="section-title-cn">联系我们</h2>
+      <div class="section-title-en">Get In Touch</div>
+      <div class="gold-bar"></div>
+    </div>
+    <div class="contact-wrap">
+      <div class="contact-info reveal">
+        <div class="contact-item">
+          <div class="contact-icon">📍</div>
+          <div class="contact-detail">
+            <div class="label">地址 Address</div>
+            <div class="value">新山，柔佛，马来西亚<br>No.11-01, Jalan Rosmerah 2/20, Taman Johor Jaya, 81100 Johor Bahru, Johor, Malaysia</div>
+          </div>
+        </div>
+        <div class="contact-item">
+          <div class="contact-icon">📞</div>
+          <div class="contact-detail">
+            <div class="label">电话 Phone / WhatsApp</div>
+            <div class="value">+60 10-8758531</div>
+          </div>
+        </div>
+        <div class="contact-item">
+          <div class="contact-icon">📧</div>
+          <div class="contact-detail">
+            <div class="label">电邮 Email</div>
+            <div class="value">hengwanglaw@gmail.com</div>
+          </div>
+        </div>
+        <div class="contact-item">
+          <div class="contact-icon">🕐</div>
+          <div class="contact-detail">
+            <div class="label">办公时间 Office Hours</div>
+            <div class="value">周一至周五：10:00am – 6:00pm<br>周六，周日及公假：休息</div>
+          </div>
+        </div>
+        <div class="contact-item">
+          <div class="contact-icon">📘</div>
+          <div class="contact-detail">
+            <div class="label">面子书 Facebook</div>
+            <div class="value">新山恒望法律事务所<br>Heng Wang Law Firm</div>
+          </div>
+        </div>
+      </div>
+      <div class="reveal reveal-delay-2">
+        <div class="contact-form" id="contactForm">
+          <div class="form-group">
+            <label>您的姓名 Name</label>
+            <input type="text" id="name" placeholder="请输入您的姓名">
+          </div>
+          <div class="form-group">
+            <label>联系电话 Phone</label>
+            <input type="tel" id="phone" placeholder="+60 XX-XXX XXXX">
+          </div>
+          <div class="form-group">
+            <label>电邮 Email</label>
+            <input type="email" id="email" placeholder="your@email.com">
+          </div>
+          <div class="form-group">
+            <label>咨询类别 Service Area</label>
+            <select id="service">
+              <option value="">请选择服务类别</option>
+              <option>民事诉讼</option>
+              <option>房产与地产</option>
+              <option>公司与商业法务</option>
+              <option>家事与离婚</option>
+              <option>遗嘱与遗产规划</option>
+              <option>刑事辩护</option>
+              <option>劳资与雇佣</option>
+              <option>债务与破产</option>
+              <option>翻译与认证</option>
+              <option>公司秘书与商标</option>
+              <option>其他</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>简述事由 Message</label>
+            <textarea id="message" placeholder="请简单描述您的法律问题或需求……"></textarea>
+          </div>
+          <button class="form-submit" onclick="submitForm()">提交咨询 SUBMIT</button>
+        </div>
+        <div id="form-success">
+          <p style="font-size:2rem;margin-bottom:1rem;">✦</p>
+          <p>感谢您的咨询！</p>
+          <p style="font-size:.8rem;color:rgba(255,255,255,.4);margin-top:.8rem;letter-spacing:.05em;font-family:'Noto Sans SC',sans-serif;">我们将在一个工作日内与您联系。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">
+    <div class="cn">恒望法律事务所</div>
+    <div class="en">Heng Wang Law Firm · Johor Bahru</div>
+  </div>
+  <div class="footer-links">
+    <a href="#about">关于</a>
+    <a href="#services">服务</a>
+    <a href="#cases">案例</a>
+    <a href="#contact">联系</a>
+  </div>
+  <p class="footer-copy">© 2025 Heng Wang Law Firm. All Rights Reserved.</p>
+</footer>
+
+<!-- BACK TO TOP -->
+<button id="btt" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+// Nav scroll
+const nav = document.getElementById('nav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 50);
+  document.getElementById('btt').classList.toggle('visible', window.scrollY > 400);
+});
+
+// Mobile menu
+function toggleMenu() {
+  document.getElementById('hamburger').classList.toggle('open');
+  document.getElementById('mobileMenu').classList.toggle('open');
+}
+function closeMenu() {
+  document.getElementById('hamburger').classList.remove('open');
+  document.getElementById('mobileMenu').classList.remove('open');
+}
+
+// Reveal on scroll
+const reveals = document.querySelectorAll('.reveal');
+const obs = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); } });
+}, { threshold: 0.1 });
+reveals.forEach(el => obs.observe(el));
+
+// Form submit
+function submitForm() {
+  const name = document.getElementById('name').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  if (!name || !phone) { alert('请填写姓名和联系电话。'); return; }
+  document.getElementById('contactForm').style.display = 'none';
+  const suc = document.getElementById('form-success');
+  suc.style.display = 'block';
+}
+</script>
+</body>
+</html>
